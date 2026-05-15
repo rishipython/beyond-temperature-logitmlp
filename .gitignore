@@ -1,0 +1,17 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Python (the data/ scripts are reproducibility utilities, not runtime)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local rendering artifacts
+*.log

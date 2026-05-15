@@ -1,0 +1,916 @@
+{
+  "pl_warp_dapo": [
+    {
+      "global_pos": 16435,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nFour unit squares form a $2\\times 2$ grid. Each of the $12$ unit line segments forming the sides of the squares is colored either red or blue in such a way that each unit square has $2$ red sides and $2$ blue sides. One example is shown below (red is solid, blue is dashed). Find the number of such colorings.\n\n\\begin{tikz",
+      "pre": " affects the squares:\n\n---\n\n### Step 3: Consider the",
+      "chosen": " Example",
+      "post": "\n\nFrom",
+      "kl": 0.22930487990379333,
+      "entropy_base": 1.6270285844802856,
+      "top1_base": 0.6933389902114868,
+      "s1": 0.83203125,
+      "s2": 0.76953125,
+      "b": 13.4375,
+      "base_top": [
+        [
+          " Example",
+          0.6933416128158569
+        ],
+        [
+          " Grid",
+          0.06449081748723984
+        ],
+        [
+          " Sym",
+          0.03046330437064171
+        ],
+        [
+          " ",
+          0.03046330437064171
+        ],
+        [
+          " Possible",
+          0.023724844679236412
+        ],
+        [
+          " Structure",
+          0.01630583219230175
+        ]
+      ],
+      "warp_top": [
+        [
+          " Example",
+          0.4323289692401886
+        ],
+        [
+          " Grid",
+          0.075127512216568
+        ],
+        [
+          " Sym",
+          0.040212858468294144
+        ],
+        [
+          " ",
+          0.040212858468294144
+        ],
+        [
+          " Possible",
+          0.031317807734012604
+        ],
+        [
+          " Given",
+          0.02439033053815365
+        ]
+      ]
+    },
+    {
+      "global_pos": 13495,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nThe product\n$$\\prod_{k=4}^{63} \\frac{\\log_k \\left(5^{k^2 - 1}\\right)}{\\log_{k+1} \\left(5^{k^2 - 4}\\right)} = \\frac{\\log_4 (5^{15})}{\\log_5 (5^{12})} \\cdot \\frac{\\log_5 (5^{24})}{\\log_6 (5^{21})} \\cdot \\frac{\\log_6 (5^{35})}{\\log_7 (5^{32})} \\dots \\frac{\\log_{63} (5^{3968})}{\\log_{64} (5^{3965})}$$\nis equal to $\\frac{m}{n",
+      "pre": ", say base 5.\n\n---\n\n### Step 2:",
+      "chosen": " Simpl",
+      "post": "ify Each",
+      "kl": 0.10264120995998383,
+      "entropy_base": 0.9111172556877136,
+      "top1_base": 0.787785530090332,
+      "s1": 0.9453125,
+      "s2": 0.765625,
+      "b": 19.875,
+      "base_top": [
+        [
+          " Simpl",
+          0.7877857089042664
+        ],
+        [
+          " Rewrite",
+          0.09408758580684662
+        ],
+        [
+          " Analy",
+          0.05706700682640076
+        ],
+        [
+          " Use",
+          0.014428801834583282
+        ],
+        [
+          " Express",
+          0.011237159371376038
+        ],
+        [
+          " Apply",
+          0.006815681699663401
+        ]
+      ],
+      "warp_top": [
+        [
+          " Simpl",
+          0.6261907815933228
+        ],
+        [
+          " Rewrite",
+          0.12330428510904312
+        ],
+        [
+          " Analy",
+          0.08474571257829666
+        ],
+        [
+          " Express",
+          0.02428005076944828
+        ],
+        [
+          " Use",
+          0.02428005076944828
+        ],
+        [
+          " Apply",
+          0.01668741926550865
+        ]
+      ]
+    },
+    {
+      "global_pos": 10725,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nLet $ABCDE$ be a convex pentagon with $AB=14, BC=7, CD=24, DE=13, EA=26,$ and $\\angle B=\\angle E=60^\\circ$. For each point $X$ in the plane, define $f(X)=AX+BX+CX+DX+EX$. The least possible value of $f(X)$ can be expressed as $m+n\\sqrt{p}$, where $m$ and $n$ are positive integers and $p$ is not divisible by the square of",
+      "pre": " in the interior.\n\n---\n\n### Step 2: Use the",
+      "chosen": " Triangle",
+      "post": " Inequality",
+      "kl": 0.08648863434791565,
+      "entropy_base": 1.9175567626953125,
+      "top1_base": 0.45356684923171997,
+      "s1": 0.859375,
+      "s2": 0.8203125,
+      "b": 13.0625,
+      "base_top": [
+        [
+          " **",
+          0.4535679519176483
+        ],
+        [
+          " Concept",
+          0.18907524645328522
+        ],
+        [
+          " Triangle",
+          0.1299493908882141
+        ],
+        [
+          " Reflection",
+          0.06955689936876297
+        ],
+        [
+          " Geometry",
+          0.02558855339884758
+        ],
+        [
+          " Method",
+          0.02258181758224964
+        ]
+      ],
+      "warp_top": [
+        [
+          " **",
+          0.3222292959690094
+        ],
+        [
+          " Concept",
+          0.17247691750526428
+        ],
+        [
+          " Triangle",
+          0.13432517647743225
+        ],
+        [
+          " Reflection",
+          0.08147233724594116
+        ],
+        [
+          " Geometry",
+          0.03396271541714668
+        ],
+        [
+          " Method",
+          0.02997199445962906
+        ]
+      ]
+    },
+    {
+      "global_pos": 15118,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nLet $k$ be real numbers such that the system $|25+20i-z|=5$ and $|z-4-k|=|z-3i-k|$ has exactly one complex solution $z$. The sum of all possible values of $k$ can be written as $\\frac{m}{n}$, where $m$ and $n$ are relatively prime positive integers. Find $m+n$. Here $i=\\sqrt{-1}$.\n\nRemember to put your answer on its own ",
+      "pre": ": Combine the Two Equations\n\nLet\u2019s denote:\n\n-",
+      "chosen": " $",
+      "post": " A =",
+      "kl": 0.07895086705684662,
+      "entropy_base": 0.8491578102111816,
+      "top1_base": 0.7524532079696655,
+      "s1": 0.74609375,
+      "s2": 0.7265625,
+      "b": 20.375,
+      "base_top": [
+        [
+          " $",
+          0.7524533867835999
+        ],
+        [
+          " Point",
+          0.13075679540634155
+        ],
+        [
+          " Circle",
+          0.07930800318717957
+        ],
+        [
+          " Center",
+          0.02005220390856266
+        ],
+        [
+          " The",
+          0.012162276543676853
+        ],
+        [
+          " A",
+          0.0016459851758554578
+        ]
+      ],
+      "warp_top": [
+        [
+          " $",
+          0.6052768230438232
+        ],
+        [
+          " Point",
+          0.17341472208499908
+        ],
+        [
+          " Circle",
+          0.11918608099222183
+        ],
+        [
+          " Center",
+          0.04384610801935196
+        ],
+        [
+          " The",
+          0.030134957283735275
+        ],
+        [
+          " A",
+          0.006724018137902021
+        ]
+      ]
+    },
+    {
+      "global_pos": 4353,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nLet $S$ be the set of vertices of a regular $24$-gon. Find the number of ways to draw $12$ segments of equal lengths so that each vertex in $S$ is an endpoint of exactly one of the $12$ segments.\n\nRemember to put your answer on its own line after \"Answer:\".",
+      "pre": "4).\n\n---\n\n### Step 4: Count the Number of",
+      "chosen": " Valid",
+      "post": " Matchings",
+      "kl": 0.06327764689922333,
+      "entropy_base": 0.942510187625885,
+      "top1_base": 0.6563665866851807,
+      "s1": 0.8671875,
+      "s2": 0.77734375,
+      "b": 16.625,
+      "base_top": [
+        [
+          " Valid",
+          0.656367301940918
+        ],
+        [
+          " Such",
+          0.2736145853996277
+        ],
+        [
+          " Step",
+          0.025450121611356735
+        ],
+        [
+          " Match",
+          0.019820574671030045
+        ],
+        [
+          " Possible",
+          0.012021786533296108
+        ],
+        [
+          " Matching",
+          0.004422568250447512
+        ]
+      ],
+      "warp_top": [
+        [
+          " Valid",
+          0.550635576248169
+        ],
+        [
+          " Such",
+          0.29473400115966797
+        ],
+        [
+          " Step",
+          0.045198921114206314
+        ],
+        [
+          " Match",
+          0.03520095348358154
+        ],
+        [
+          " Possible",
+          0.024193238466978073
+        ],
+        [
+          " Matching",
+          0.011428073979914188
+        ]
+      ]
+    },
+    {
+      "global_pos": 6101,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nLet $x_1, x_2, x_3, \\ldots$ be a sequence of rational numbers defined by $x_1 = \\frac{25}{11}$ and\n$$x_{k+1} = \\frac{1}{3}\\left(x_k + \\frac{1}{x_k} - 1\\right)$$\nfor all $k \\ge 1$. Then $x_{2025}$ can be expressed as $\\frac{m}{n}$, where $m$ and $n$ are relatively prime positive integers. Find the remainder when $m + n$ i",
+      "pre": "3 $ in more detail.\n\n---\n\n### Step 3:",
+      "chosen": " Try",
+      "post": " to find",
+      "kl": 0.05908970534801483,
+      "entropy_base": 2.1680378913879395,
+      "top1_base": 0.3671858310699463,
+      "s1": 0.8984375,
+      "s2": 0.859375,
+      "b": 16.75,
+      "base_top": [
+        [
+          " Try",
+          0.36718735098838806
+        ],
+        [
+          " Compute",
+          0.2523639500141144
+        ],
+        [
+          " Use",
+          0.1530664563179016
+        ],
+        [
+          " Simpl",
+          0.043854277580976486
+        ],
+        [
+          " Check",
+          0.020715292543172836
+        ],
+        [
+          " Find",
+          0.016133086755871773
+        ]
+      ],
+      "warp_top": [
+        [
+          " Try",
+          0.2984790503978729
+        ],
+        [
+          " Compute",
+          0.20514145493507385
+        ],
+        [
+          " Use",
+          0.14099152386188507
+        ],
+        [
+          " Simpl",
+          0.05186787247657776
+        ],
+        [
+          " Check",
+          0.02450065314769745
+        ],
+        [
+          " Find",
+          0.02162175066769123
+        ]
+      ]
+    },
+    {
+      "global_pos": 627,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nThe equation\n\\[x^{10}+(13x-1)^{10}=0\\,\\]has 10 complex roots $r_1,$ $\\overline{r}_1,$ $r_2,$ $\\overline{r}_2,$ $r_3,$ $\\overline{r}_3,$ $r_4,$ $\\overline{r}_4,$ $r_5,$ $\\overline{r}_5,$ where the bar denotes complex conjugation. Find the value of\n\\[\\frac 1{r_1\\overline{r}_1}+\\frac 1{r_2\\overline{r}_2}+\\frac 1{r_3\\overlin",
+      "pre": " squares of their magnitudes.\n\n---\n\n### Step 3:",
+      "chosen": " Use",
+      "post": " the polynomial",
+      "kl": 0.057095594704151154,
+      "entropy_base": 1.222434401512146,
+      "top1_base": 0.717708945274353,
+      "s1": 0.91015625,
+      "s2": 0.83203125,
+      "b": 20.0,
+      "base_top": [
+        [
+          " Use",
+          0.7177097201347351
+        ],
+        [
+          " Solve",
+          0.06675740331411362
+        ],
+        [
+          " Analy",
+          0.058913201093673706
+        ],
+        [
+          " Find",
+          0.04588164761662483
+        ],
+        [
+          " Simpl",
+          0.035732660442590714
+        ],
+        [
+          " Let",
+          0.03153396397829056
+        ]
+      ],
+      "warp_top": [
+        [
+          " Use",
+          0.5907250642776489
+        ],
+        [
+          " Solve",
+          0.07994594424962997
+        ],
+        [
+          " Analy",
+          0.0705520510673523
+        ],
+        [
+          " Simpl",
+          0.054945994168519974
+        ],
+        [
+          " Find",
+          0.054945994168519974
+        ],
+        [
+          " Let",
+          0.04848966747522354
+        ]
+      ]
+    },
+    {
+      "global_pos": 6504,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nOn $\\triangle ABC$ points $A,D,E$, and $B$ lie that order on side $\\overline{AB}$ with $AD=4, DE=16$, and $EB=8$. Points $A,F,G$, and $C$ lie in that order on side $\\overline{AC}$ with $AF=13, FG=52$, and $GC=26$. Let $M$ be the reflection of $D$ through $F$, and let $N$ be the reflection of $G$ through $E$. Quadrilatera",
+      "pre": " not directly useful for area.\n\n---\n\n### Step 3:",
+      "chosen": " Use",
+      "post": " area of",
+      "kl": 0.05433198809623718,
+      "entropy_base": 0.9736608266830444,
+      "top1_base": 0.7729087471961975,
+      "s1": 0.921875,
+      "s2": 0.8359375,
+      "b": 20.5,
+      "base_top": [
+        [
+          " Use",
+          0.7729093432426453
+        ],
+        [
+          " Area",
+          0.1046019047498703
+        ],
+        [
+          " Analy",
+          0.038480889052152634
+        ],
+        [
+          " Consider",
+          0.02644750289618969
+        ],
+        [
+          " Find",
+          0.014156331308186054
+        ],
+        [
+          " Focus",
+          0.009729492478072643
+        ]
+      ],
+      "warp_top": [
+        [
+          " Use",
+          0.6512748003005981
+        ],
+        [
+          " Area",
+          0.1282436102628708
+        ],
+        [
+          " Analy",
+          0.05345989018678665
+        ],
+        [
+          " Consider",
+          0.04163460433483124
+        ],
+        [
+          " Find",
+          0.02525266446173191
+        ],
+        [
+          " Focus",
+          0.017355889081954956
+        ]
+      ]
+    }
+  ],
+  "pl_warp_passk": [
+    {
+      "global_pos": 1495,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nThe equation\n\\[x^{10}+(13x-1)^{10}=0\\,\\]has 10 complex roots $r_1,$ $\\overline{r}_1,$ $r_2,$ $\\overline{r}_2,$ $r_3,$ $\\overline{r}_3,$ $r_4,$ $\\overline{r}_4,$ $r_5,$ $\\overline{r}_5,$ where the bar denotes complex conjugation. Find the value of\n\\[\\frac 1{r_1\\overline{r}_1}+\\frac 1{r_2\\overline{r}_2}+\\frac 1{r_3\\overlin",
+      "pre": "_5 $.\n\n---\n\n### Step 3: Use the",
+      "chosen": " given",
+      "post": " equation\n\n",
+      "kl": 0.295434832572937,
+      "entropy_base": 1.9829717874526978,
+      "top1_base": 0.4158511757850647,
+      "s1": 1.1640625,
+      "s2": 2.09375,
+      "b": 25.125,
+      "base_top": [
+        [
+          " original",
+          0.4158518612384796
+        ],
+        [
+          " fact",
+          0.22258947789669037
+        ],
+        [
+          " equation",
+          0.07226421684026718
+        ],
+        [
+          " property",
+          0.05627942830324173
+        ],
+        [
+          " properties",
+          0.05627942830324173
+        ],
+        [
+          " polynomial",
+          0.04383046180009842
+        ]
+      ],
+      "warp_top": [
+        [
+          " original",
+          0.7306235432624817
+        ],
+        [
+          " fact",
+          0.20932716131210327
+        ],
+        [
+          " equation",
+          0.0194704569876194
+        ],
+        [
+          " property",
+          0.010421784594655037
+        ],
+        [
+          " properties",
+          0.010421784594655037
+        ],
+        [
+          " polynomial",
+          0.006321132183074951
+        ]
+      ]
+    },
+    {
+      "global_pos": 8145,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nSuppose the polynomial\n$$f(x) = a_nx^n + a_{n-1}x^{n-1} + \\cdots + a_2x^2 + a_1x + a_0$$has integer coefficients, and its roots are distinct integers.\n\nGiven that $a_n=2$ and $a_0=66$, what is the least possible value of $|a_{n-1}|$?\n\nRemember to put your answer on its own line after \"Answer:\".",
+      "pre": " two distinct integers $ r $ and $ s $, and",
+      "chosen": " $",
+      "post": " a_n",
+      "kl": 0.275664359331131,
+      "entropy_base": 2.461517095565796,
+      "top1_base": 0.34572213888168335,
+      "s1": 1.2421875,
+      "s2": 1.875,
+      "b": 26.0,
+      "base_top": [
+        [
+          " the",
+          0.34572336077690125
+        ],
+        [
+          " try",
+          0.16330814361572266
+        ],
+        [
+          " consider",
+          0.07714129984378815
+        ],
+        [
+          " $",
+          0.07714129984378815
+        ],
+        [
+          " suppose",
+          0.046788569539785385
+        ],
+        [
+          " we",
+          0.032157283276319504
+        ]
+      ],
+      "warp_top": [
+        [
+          " the",
+          0.6756508350372314
+        ],
+        [
+          " try",
+          0.15075808763504028
+        ],
+        [
+          " consider",
+          0.04319291189312935
+        ],
+        [
+          " $",
+          0.04319291189312935
+        ],
+        [
+          " suppose",
+          0.015889784321188927
+        ],
+        [
+          " we",
+          0.009637640789151192
+        ]
+      ]
+    },
+    {
+      "global_pos": 6679,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nOn $\\triangle ABC$ points $A,D,E$, and $B$ lie that order on side $\\overline{AB}$ with $AD=4, DE=16$, and $EB=8$. Points $A,F,G$, and $C$ lie in that order on side $\\overline{AC}$ with $AF=13, FG=52$, and $GC=26$. Let $M$ be the reflection of $D$ through $F$, and let $N$ be the reflection of $G$ through $E$. Quadrilatera",
+      "pre": " the heptagon is formed from these points, we can",
+      "chosen": " find",
+      "post": " the total",
+      "kl": 0.27490168809890747,
+      "entropy_base": 2.2463326454162598,
+      "top1_base": 0.48331817984580994,
+      "s1": 1.265625,
+      "s2": 2.1875,
+      "b": 26.375,
+      "base_top": [
+        [
+          " use",
+          0.4833201467990875
+        ],
+        [
+          " compute",
+          0.12220247089862823
+        ],
+        [
+          " consider",
+          0.08398845046758652
+        ],
+        [
+          " find",
+          0.05094156786799431
+        ],
+        [
+          " calculate",
+          0.027267057448625565
+        ],
+        [
+          " think",
+          0.024063091725111008
+        ]
+      ],
+      "warp_top": [
+        [
+          " use",
+          0.8332663178443909
+        ],
+        [
+          " compute",
+          0.053268931806087494
+        ],
+        [
+          " consider",
+          0.032309241592884064
+        ],
+        [
+          " find",
+          0.01959654688835144
+        ],
+        [
+          " calculate",
+          0.008169054985046387
+        ],
+        [
+          " think",
+          0.007209166418761015
+        ]
+      ]
+    },
+    {
+      "global_pos": 3726,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nLet $S$ be the set of vertices of a regular $24$-gon. Find the number of ways to draw $12$ segments of equal lengths so that each vertex in $S$ is an endpoint of exactly one of the $12$ segments.\n\nRemember to put your answer on its own line after \"Answer:\".",
+      "pre": " all 24 vertices.\n\n---\n\n### Step 4:",
+      "chosen": " Count",
+      "post": " the number",
+      "kl": 0.26205119490623474,
+      "entropy_base": 1.9582369327545166,
+      "top1_base": 0.4115855395793915,
+      "s1": 1.3515625,
+      "s2": 2.140625,
+      "b": 26.625,
+      "base_top": [
+        [
+          " Count",
+          0.4115864634513855
+        ],
+        [
+          " Determine",
+          0.1514142006635666
+        ],
+        [
+          " Find",
+          0.1514142006635666
+        ],
+        [
+          " How",
+          0.11792150139808655
+        ],
+        [
+          " Consider",
+          0.033785074949264526
+        ],
+        [
+          " Use",
+          0.033785074949264526
+        ]
+      ],
+      "warp_top": [
+        [
+          " Count",
+          0.7556871771812439
+        ],
+        [
+          " Determine",
+          0.07964883744716644
+        ],
+        [
+          " Find",
+          0.07964883744716644
+        ],
+        [
+          " How",
+          0.04830946400761604
+        ],
+        [
+          " Consider",
+          0.010779297910630703
+        ],
+        [
+          " Use",
+          0.010779297910630703
+        ]
+      ]
+    },
+    {
+      "global_pos": 5889,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nLet $x_1, x_2, x_3, \\ldots$ be a sequence of rational numbers defined by $x_1 = \\frac{25}{11}$ and\n$$x_{k+1} = \\frac{1}{3}\\left(x_k + \\frac{1}{x_k} - 1\\right)$$\nfor all $k \\ge 1$. Then $x_{2025}$ can be expressed as $\\frac{m}{n}$, where $m$ and $n$ are relatively prime positive integers. Find the remainder when $m + n$ i",
+      "pre": "right)\n$$\n\nThis is complicated to compute directly, but",
+      "chosen": " notice",
+      "post": " that it",
+      "kl": 0.24281728267669678,
+      "entropy_base": 2.1303210258483887,
+      "top1_base": 0.40944910049438477,
+      "s1": 1.203125,
+      "s2": 1.796875,
+      "b": 23.625,
+      "base_top": [
+        [
+          " we",
+          0.40945133566856384
+        ],
+        [
+          " let",
+          0.1506287306547165
+        ],
+        [
+          " perhaps",
+          0.13292938470840454
+        ],
+        [
+          " notice",
+          0.0489019900560379
+        ],
+        [
+          " it",
+          0.038084909319877625
+        ],
+        [
+          " maybe",
+          0.038084909319877625
+        ]
+      ],
+      "warp_top": [
+        [
+          " we",
+          0.7191705703735352
+        ],
+        [
+          " let",
+          0.12497308850288391
+        ],
+        [
+          " perhaps",
+          0.0858926773071289
+        ],
+        [
+          " notice",
+          0.014925912953913212
+        ],
+        [
+          " it",
+          0.009053021669387817
+        ],
+        [
+          " maybe",
+          0.009053021669387817
+        ]
+      ]
+    },
+    {
+      "global_pos": 1933,
+      "prompt": "Solve the following math problem step by step. The last line of your response should be of the form Answer: $Answer (without quotes) where $Answer is the answer to the problem.\n\nLet $P(x)$ be a quadratic polynomial with real coefficients satisfying $x^2 - 2x + 2 \\le P(x) \\le 2x^2 - 4x + 3$ for all real  numbers $x$, and suppose $P(11) = 181$. Find $P(16)$.\n\nRemember to put your answer on its own line after \"Answer:\".",
+      "pre": " for all $ x $.\n\n---\n\n### Step 2:",
+      "chosen": " Consider",
+      "post": " the difference",
+      "kl": 0.24226240813732147,
+      "entropy_base": 1.364830732345581,
+      "top1_base": 0.6842952370643616,
+      "s1": 1.3671875,
+      "s2": 2.15625,
+      "b": 28.625,
+      "base_top": [
+        [
+          " Analy",
+          0.6842958927154541
+        ],
+        [
+          " Consider",
+          0.08172748982906342
+        ],
+        [
+          " Use",
+          0.08172748982906342
+        ],
+        [
+          " Find",
+          0.0495702289044857
+        ],
+        [
+          " Determine",
+          0.020663945004343987
+        ],
+        [
+          " Let",
+          0.016093097627162933
+        ]
+      ],
+      "warp_top": [
+        [
+          " Analy",
+          0.9586445689201355
+        ],
+        [
+          " Consider",
+          0.013674329966306686
+        ],
+        [
+          " Use",
+          0.013674329966306686
+        ],
+        [
+          " Find",
+          0.006459296215325594
+        ],
+        [
+          " Determine",
+          0.002376242307946086
+        ],
+        [
+          " Let",
+          0.0014412638265639544
+        ]
+      ]
+    }
+  ]
+}
