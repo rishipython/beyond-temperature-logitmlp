@@ -648,13 +648,19 @@
 
     // (s1, s2) values come from real high-KL active tokens of the trained
     // heads on Qwen3-1.7B rollouts (the same ones surfaced in Figure 4):
-    //   pass@k token " Count":   s1=1.35, s2=2.14
-    //   DAPO    token " Example": s1=0.83, s2=0.77
-    // b is set just below top-1, matching the analysis finding that the
-    // learned head puts b near max(ℓ) at ~95% of positions.
+    //   pass@k token " Count": s1=1.35, s2=2.14  (head sharpens steeper)
+    //   DAPO    token " Simpl": s1=0.95, s2=0.77 (head flattens steeper —
+    //     the DAPO active token with the widest s1/s2 gap, picked because
+    //     a "near-temperature" DAPO token would be matchable by a single T
+    //     and obscure the figure's point).
+    // b is placed at 2.0 so the top ~4 logits sit in the head region; on
+    // real Qwen logits, b sits much closer to max(ℓ), so each individual
+    // active token typically only has 1-2 head tokens — but the head/tail
+    // asymmetry is what no global T can express, and showing it on 4 head
+    // tokens makes that visible.
     const presets = {
-      passk: { s1: 1.35, s2: 2.14, b: 3.1, name: "LogitMLP — pass@k (real token)" },
-      dapo:  { s1: 0.83, s2: 0.77, b: 3.1, name: "LogitMLP — DAPO (real token)" },
+      passk: { s1: 1.35, s2: 2.14, b: 2.0, name: "LogitMLP — pass@k (real token)" },
+      dapo:  { s1: 0.95, s2: 0.77, b: 2.0, name: "LogitMLP — DAPO (real token)" },
     };
 
     const controls = document.createElement("div");
