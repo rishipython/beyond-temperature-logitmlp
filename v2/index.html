@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beyond Temperature</title>
+  <meta name="description" content="Rethinking fixed, global temperature and moving toward token-adaptive logit transformations. LogitMLP is a tiny learned head that picks its own per-token logit transform and improves on standard RLVR post-training for negligible parameter cost.">
+
+  <!-- KaTeX for math -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous" onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\[', right: '\\]', display: true}, {left: '$', right: '$', display: false}, {left: '\\(', right: '\\)', display: false}]});"></script>
+
+  <link rel="stylesheet" href="styles/main.css">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="topbar">
+  <span class="kicker">LogitMLP</span>
+  <span>UC Berkeley EE290 · 2026</span>
+</div>
+
+<div style="max-width: 760px; margin: 16px auto 0; padding: 10px 16px; background: #fff8eb; border: 1px solid #f4d68a; border-radius: 4px; font-family: -apple-system, 'Inter', 'Helvetica Neue', Arial, sans-serif; font-size: 13.5px; color: #5b4a13;">
+  <strong style="letter-spacing: 0.04em;">v2 DRAFT</strong> · This is a draft revision. The current public version lives at <a href="../" style="color: #8a5a14; font-weight: 600;">../</a>. Changes in this draft, vs. v1: a key-findings callout right under the TL;DR, a sharper Qwen-vs-Llama qualitative contrast, and a new &ldquo;Why does this even work?&rdquo; section on calibration with a Gemma data point.
+</div>
+
+<article class="article">
+
+  <!-- ===================== Title block ===================== -->
+  <header class="title-block">
+    <h1>Beyond Temperature</h1>
+    <p class="subtitle">Rethinking fixed, global temperature and moving toward token-adaptive logit transformations. <strong>LogitMLP</strong> builds on standard post-training and enables better performance and exploration for negligible parameter cost.</p>
+
+    <div class="byline">
+      <div>
+        <span class="label">Authors</span>
+        <span class="value">Timothy Gao, Alex Luu, Harsha Polavaram, David Yang, Aryan Bansal, Rishi Athavale</span>
+      </div>
+      <div>
+        <span class="label">Date</span>
+        <span class="value">May 2026</span>
+      </div>
+      <div>
+        <span class="label">Code &amp; data</span>
+        <span class="value"><a href="#citation">forthcoming</a></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================== TLDR ===================== -->
+  <div class="tldr">
+    <div class="label">TL;DR</div>
+    <p>We explore replacing traditional temperature scaling and sampling methods in LLMs by instead letting the LLM specify the reshaping and rescaling of its own probability distribution on a per-token basis (essentially allowing the LLM to pick a temperature and sampling method for each token). We train this token-adaptive transform with RLVR on top of a frozen base model and show that for a negligible cost (increasing parameter count by ${<}0.1\%$ and only updating those parameters) it recovers most of the gap between a temperature-optimized base model and full-parameter RLVR fine-tuning on math reasoning benchmarks. When further stacked on top of an already RLVR-trained checkpoint, our method gives additional gains over a temperature-optimized full-RLVR model.</p>
+    <p>Our results show that LogitMLP is a very cheap addition to standard post-training regimes that enhances performance and enables better exploration for inference-time scaling.</p>
+  </div>
+
+  <!-- ===================== Key findings callout ===================== -->
+  <div style="margin: 24px 0 40px; padding: 20px 24px 22px; border: 1px solid #e6e6e6; border-left: 3px solid #1a1a1a; border-radius: 2px; background: #fafafa;">
+    <div style="font-family: -apple-system, 'Inter', 'Helvetica Neue', Arial, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #1a1a1a; margin-bottom: 14px;">Three findings</div>
+    <ol style="margin: 0; padding-left: 22px;">
+      <li style="margin-bottom: 12px;">
+        <strong>Pass@1: LogitMLP recovers most of full-parameter RLVR.</strong>
+        Trained from scratch on Qwen3-1.7B-Base, a $\sim$525K-parameter learned transform of the logits — under 0.1% of the parameters, with the base model frozen — closes most of the MATH-500 gap between a tuned global temperature and full-parameter RLVR fine-tuning. <a href="#results-pass1" style="color: var(--accent); font-weight: 500;">See Finding&nbsp;1 →</a>
+      </li>
+      <li style="margin-bottom: 12px;">
+        <strong>Pass@k: LogitMLP beats Full RLVR on best@8, but the gain is diversity, not reasoning.</strong>
+        Trained with the pass@$k$ objective, LogitMLP sets the strongest best@8 on MATH-500 (+9.4 points over full-parameter RLVR) but loses on mean accuracy and worst@8. The win is entirely sampling-driven: answer entropy more than doubles. <a href="#results-passk" style="color: var(--accent); font-weight: 500;">See Finding&nbsp;2 →</a>
+      </li>
+      <li>
+        <strong>Stacked on a Full-RLVR checkpoint, LogitMLP breaks the global-temperature Pareto frontier.</strong>
+        On the same Full-RLVR Qwen3-1.7B checkpoint, no temperature setting Pareto-dominates LogitMLP-on-top: LogitMLP simultaneously raises best@1 above the lowest-$T$ point and best@8 above the highest-$T$ point of the entire sweep. The same additivity holds on Llama-3.2-1B, with a different shape of gain. <a href="#results-stacking" style="color: var(--accent); font-weight: 500;">See Finding&nbsp;3 →</a>
+      </li>
+    </ol>
+  </div>
+
+  <!-- ===================== Section 1: Prelude ===================== -->
+  <h2 id="prelude">Prelude: What's the deal with temperature and sampling?</h2>
+
+  <p>Transformer-based language models don't directly output tokens; they output a probability distribution that <em>we</em> then sample from. The LLM itself doesn't tell us <em>how</em> to sample — that's up to us. The standard approach is to first rescale the distribution by dividing the log-probs by a constant <em>temperature</em>, then further reshape it through a sampling method (greedy, top-$k$, top-$p$, min-$p$):</p>
+
+  $$ x_t \;\sim\; \mathrm{softmax}\!\left(\,\mathcal{C}\!\left(\,\ell_t / T \,\right)\,\right) $$
+
+  <p>where $\ell_t$ is the logit vector at position $t$, $T$ is the temperature, and $\mathcal{C}$ is the sampling rule. The choice of $T$ and $\mathcal{C}$ has a <a href="https://arxiv.org/abs/1904.09751">massive</a> <a href="https://arxiv.org/abs/1706.04599">impact</a> on <a href="https://arxiv.org/abs/2107.03374">pass@1, pass@k</a>, and <a href="https://arxiv.org/abs/2407.01082">calibration</a> — and yet both are picked by hand, by a human, <em>after</em> the model has done all of its actual learning.</p>
+
+  <p>This is awkward for two reasons.</p>
+
+  <p>First, the next-token distribution is the only thing telling us how <em>certain</em> the model is — and certainty varies enormously across tokens. Mid-word, the distribution sharply peaks on the obvious continuation. At a <a href="https://arxiv.org/abs/2506.01939">branching point in a chain of thought</a>, it spreads across several plausible directions. Good sampling should respect that — sharp where the model is confident, exploratory where it isn't. But $T$ and $\mathcal{C}$ are <em>global</em>: the same scalar and the same truncation rule are applied to every token of every problem, even though <a href="https://arxiv.org/abs/2402.05201">different problems have different optimal temperatures</a> and <a href="https://github.com/xjdr-alt/entropix">per-token decoding strategies</a> can beat any fixed $T$ by adapting to per-step entropy. The sampling rule $\mathcal{C}$ is worse: it's a discrete choice from a hand-designed grab bag (top-$k$, top-$p$, min-$p$, …), with no reason to expect the best member of that grab bag is close to the best member of some larger family.</p>
+
+  <figure class="wide">
+    <img src="assets/branching_points.png" alt="Hand-drawn diagram: next-token entropy along a sequence of tokens, with most tokens having low entropy and a handful of sharp spikes labeled as 'branching points'. The token strip below reads '... therefore the answer is 42, so we get x = 7 .'">
+    <figcaption><strong>Per-token uncertainty across a typical reasoning trace.</strong> Most tokens are deterministic continuations of what came before (low entropy); the model is genuinely uncertain only at a handful of branching points. A single global temperature and a single global sampling rule apply the same recipe to every one of these positions.</figcaption>
+  </figure>
+
+  <p>Second — on a philosophical level — there's something un-elegant about a human filling in the gap between the model's actual output and the resulting token we care about. The benefit of end-to-end deep learning over older NLP pipelines is exactly that we let the data do the work, instead of relying on hand-tuned linguistic priors. Temperature and sampling rules are a sort of relic of a pre-deep-learning era, a last bit of handcrafted algo-tuning on top of a mostly black-box model. As <a href="https://arxiv.org/abs/2410.21287">Wang et al. (2025)</a> put it, "the 'end-to-end' label for LLMs is a misnomer" precisely because of this. They train a lightweight per-token head to predict temperature and top-$p$ parameters and show it beats static settings — evidence that the un-elegance is also hurting performance. But their method is still constrained to a temperature-plus-top-$p$ regime, leaving open the question of whether a more expressive learned transform would do better.</p>
+
+  <!-- ===================== Section 2: LogitMLP ===================== -->
+  <h2 id="logitmlp">Learning a two-piece monotonic transform with LogitMLP</h2>
+
+  <p>Our goal is to learn some function $f(\ell_t)$ such that $\mathrm{softmax}(f(\ell_t))$ produces an &ldquo;optimal&rdquo; distribution. This leaves two big questions: <strong>what is $f$</strong>, and <strong>what does &ldquo;optimal&rdquo; mean</strong>?</p>
+
+  <h3 id="two-piece">Two-piece monotonic: a flexible family of transforms</h3>
+
+  <p>For $f$, we want three things:</p>
+  <ol>
+    <li><strong>Token-adaptive.</strong> $f$ should be different at each position.</li>
+    <li><strong>Argmax- and order-preserving.</strong> $f$ should preserve the relative ranking of $\ell$.</li>
+    <li><strong>Strict generalization.</strong> $f$ should recover temperature, top-$k$, top-$p$, and min-$p$ as special cases.</li>
+  </ol>
+
+  <p>We pick a <em>two-piece monotonic function</em> of the form</p>
+
+  $$ f(\ell;\, s_1, s_2, b) \;=\; s_1\, \ell \;+\; (s_2 - s_1)\,\mathrm{ReLU}(\ell - b). $$
+
+  <p>Equivalently, this is the piecewise-linear function</p>
+
+  $$ f(\ell;\, s_1, s_2, b) \;=\; \begin{cases} s_1\,\ell, & \ell \le b \\ s_2\,\ell + (s_1 - s_2)\,b, & \ell > b \end{cases} $$
+
+  <figure class="schematic-fig">
+    <img src="assets/logitmlp_schematic.png" alt="Schematic of the two-piece monotonic transform: a piecewise-linear function f(ℓ) with tail slope s₁ on the left, head slope s₂ on the right, joined at the breakpoint b. A dashed grey line shows the single-slope temperature transform (slope 1/T) for comparison." style="max-width: 380px;">
+    <figcaption>The two-piece monotonic transform with tail slope $s_1$, head slope $s_2$, and breakpoint $b$. A global temperature is the special case where $s_1 = s_2 = 1/T$ — a single line, no kink.</figcaption>
+  </figure>
+
+  <p>with two slopes (one for &ldquo;tail&rdquo; logits below the breakpoint $b$, one for &ldquo;head&rdquo; logits above it) and a continuous junction at $\ell = b$. Since $\ell$ is a vector, $f$ is applied element-wise. Throughout this post we'll use <em>warp</em> as a shorthand for the LogitMLP-transformed distribution at a position — &ldquo;the warp&rdquo; is just $\mathrm{softmax}(f(\ell_t))$, and the &ldquo;base distribution&rdquo; is $\mathrm{softmax}(\ell_t)$.</p>
+
+  <p>This two-piece form is flexible enough to recover all of the standard inference-time decoders as special cases of $(s_1, s_2, b)$:</p>
+  <ul>
+    <li><strong>Temperature.</strong> Set $s_1 = s_2 = 1/T$. The two pieces collapse into a single line of slope $1/T$, and the breakpoint becomes irrelevant.</li>
+    <li><strong>Top-$k$.</strong> Place $b$ between the $k$-th and $(k{+}1)$-th largest logit and send $s_1 \to 0$. The bottom piece flattens out, every tail token maps to the same value, and after the softmax those tokens share whatever probability mass is left over (in the limit, none).</li>
+    <li><strong>Top-$p$ and min-$p$.</strong> Same construction as top-$k$, but with $b$ placed according to their respective cumulative-mass and relative-threshold rules.</li>
+    <li><strong>Anti-overconfidence reshape (no existing analogue).</strong> Set $s_2 < s_1$ with $b$ just below the top logit. The head <em>flattens</em> while the tail is left alone — exactly what you'd want if the model had collapsed too aggressively onto a single token. This is a region of behavior that no off-the-shelf decoder covers on its own.</li>
+  </ul>
+
+  <!-- Hero interactive figure -->
+  <div class="widget wide" id="piecewise-widget">
+    <div class="widget-title">Figure 1 · The piecewise transform, live</div>
+    <div class="widget-sub">Drag the sliders to see how $(s_1, s_2, b)$ reshape a sample logit distribution. The first row of presets reproduces standard decoders as special cases of this family. The last two presets — <em>LogitMLP (DAPO)</em> and <em>LogitMLP (pass@k)</em> — use $(s_1, s_2)$ taken from one of the highest-KL active tokens of each trained head on real Qwen3-1.7B rollouts (more on what these look like in <a href="#learned-qualitative">Figure 4</a>); they show what an active LogitMLP transformation looks like in practice.</div>
+  </div>
+
+  <h3 id="conditioning">Choosing $(s_1, s_2, b)$ from the current hidden state</h3>
+
+  <p>To make the policy token-adaptive, we condition $(s_1, s_2, b)$ on each position's own representation. At step $t$, let $h_t \in \mathbb{R}^d$ be the post-final-norm hidden state — the same vector the unembedding matrix uses to produce $\ell_t$. We concatenate $h_t$ with three detached logit statistics $\bigl(\max(\ell_t),\,\mathrm{mean}(\ell_t),\,\mathrm{std}(\ell_t)\bigr)$ and feed the result to a small two-layer MLP $\phi_\theta : \mathbb{R}^{d+3} \to \mathbb{R}^3$ with hidden width $d_\text{mlp}$ and a ReLU non-linearity:</p>
+
+  $$ (\tilde s_1, \tilde s_2, \tilde b) \;=\; \phi_\theta\!\bigl([\,h_t;\,\max(\ell_t),\,\mathrm{mean}(\ell_t),\,\mathrm{std}(\ell_t)\,]\bigr). $$
+
+  <p>The raw outputs are then post-processed into the actual $(s_1, s_2, b)$. We bound the slopes to $(1/4, 4)$ via a sigmoid-to-exponential mapping</p>
+
+  $$ s_i \;=\; \exp\!\Bigl(\log 4 \cdot \bigl(2\sigma(\tilde s_i) - 1\bigr)\Bigr) \;\in\;\bigl(1/4,\,4\bigr), $$
+
+  <p>which is symmetric around $s_i = 1$ (the identity) in log-space. For $b$, we want it to land somewhere in the high-probability region of the logit distribution — not so low that all logits sit above the breakpoint (and the warp degenerates to slope $s_2$ everywhere) and not above the maximum (where it degenerates to slope $s_1$). We anchor it to the maximum and parameterize relative to the logit standard deviation:</p>
+
+  $$ b \;=\; \max(\ell_t) \;-\; 4 \cdot \mathrm{std}(\ell_t) \cdot \sigma(\tilde b) \;\in\;\bigl(\max(\ell_t) - 4\sigma,\;\max(\ell_t)\bigr). $$
+
+  <p>Since $s_1, s_2 > 0$ by construction, $f$ is strictly increasing, so $\ell^{(i)} > \ell^{(j)} \Rightarrow f(\ell^{(i)}) > f(\ell^{(j)})$. The argmax and the relative ordering of every pair of tokens is preserved exactly. The transform <em>reshapes</em> the next-token distribution, but never <em>reranks</em> it.</p>
+
+  <figure class="wide">
+    <img src="assets/overview.png" alt="LogitMLP architecture: frozen LLM produces a hidden state h_i and logits l_i; LogitMLP consumes h_i (plus logit statistics) and outputs (s1, s2, b); the resulting piecewise transform is applied to the logits before softmax." style="border:1px solid #eee; border-radius:6px">
+    <figcaption><strong>The pipeline.</strong> The base LLM is frozen. At every position, the post-norm hidden state $h_i$ is fed to a small MLP that emits $(s_1, s_2, b)$ specifying a piecewise-linear monotonic transform. The transformed logits $f(\ell_i)$ are then softmaxed and sampled. The transform is rank-preserving, so the base model's top-$k$ predictions are preserved for every $k$; only the <em>shape</em> of the distribution changes.</figcaption>
+  </figure>
+
+  <p>For our main experiments on Qwen3-1.7B we use $d_\text{mlp} = 256$, giving $\phi_\theta$ about $(2048{+}3) \times 256 + 256 \times 3 \approx 525\text{K}$ parameters — well under <em>0.1%</em> of the base model, and small enough that training is essentially free relative to base-model rollout cost.</p>
+
+  <!-- ===================== Section 3: RLVR ===================== -->
+  <h2 id="rlvr">Learning this function with RLVR</h2>
+
+  <p>The second question we left open was what &ldquo;optimal&rdquo; actually means for the next-token distribution. The cleanest framing is to step back from per-token distributions for a moment and ask what we actually want from the model: high expected reward over generated trajectories. A trajectory is just a sequence of tokens, so its probability factorizes into the per-token distributions LogitMLP controls — meaning the per-token distributions implicitly define a distribution over <em>trajectories</em>, and that's the object we really care about.</p>
+
+  <p>What &ldquo;optimal&rdquo; means for the trajectory distribution depends on how the model will be deployed. If we sample one trajectory and want it to be correct, the optimal trajectory distribution concentrates mass on correct trajectories — per-token, this looks like <em>exploitation</em>: at every step, sample whatever is most likely to keep you on a correct trajectory. This is the regime measured by <strong>pass@1</strong>.</p>
+
+  <p>But increasingly, models are deployed in <em>inference-scaling</em> regimes where we sample many trajectories and care whether at least one is correct — best-of-$n$, self-consistency, anything pass@$k$-flavored. The optimal trajectory distribution here is fundamentally different: instead of concentrating on correct trajectories, we want to <em>spread mass across diverse correct trajectories</em> so that the expected maximum reward over $k$ samples is high. Per-token, this looks like <em>exploration</em>: at branching points where the model is uncertain, the right move is to <em>flatten</em> the distribution and produce semantically distinct continuations, not to pick the single most likely token. This is the regime measured by <strong>pass@$k$</strong>.</p>
+
+  <p>This is exactly where a token-adaptive logit transform has a real edge over global temperature. A global temperature can move you along the exploration–exploitation axis, but it does so uniformly across every token of every generation. A pass@$k$-optimal policy needs to flatten at uncertain branching tokens <em>while staying sharp at confident continuation tokens</em> — exactly the kind of per-token control LogitMLP is built for. We'd expect the gap between LogitMLP and any global temperature to widen as we move from pass@1 to pass@$k$, and as we'll see in the results, that's what happens.</p>
+
+  <h3 id="rlvr-training">Training LogitMLP with RLVR</h3>
+
+  <p>Defining optimality through downstream reward is exactly the setting <a href="https://arxiv.org/abs/2501.12948">RLVR</a> is built for. We sample a rollout under the LogitMLP-warped sampling distribution, check whether the final answer is correct, and assign a binary reward. We then update LogitMLP to make rewarded trajectories more likely. The base LLM stays entirely frozen — gradients flow through the sampling distribution, into $(s_1, s_2, b)$, and into the MLP's weights, but never further back.</p>
+
+  <p>We use <a href="https://arxiv.org/abs/2503.14476">DAPO</a> as our specific RLVR algorithm — a GRPO-style method with no KL penalty, decoupled clipping thresholds, and dynamic sampling (groups where all rollouts are correct or all incorrect get discarded) — and train on the DAPO-Math-17K dataset. The two trajectory-level objectives above show up as two different <em>advantage estimators</em>: standard DAPO uses the group-mean reward as the baseline, which over training drives the policy toward per-rollout correctness (pass@1). For pass@$k$, we use the analytical pass@$k$ advantage estimator from <a href="https://arxiv.org/abs/2508.10751">Chen et al.</a>, which assigns each rollout an advantage based on its marginal contribution to the group's pass@$k$. These two objectives produce very different LogitMLP policies, which is one of the more interesting things we'll see in the results.</p>
+
+  <p>One small but important implementation detail: a randomly-initialized MLP would emit wildly miscalibrated $(s_1, s_2, b)$ at step 0 and destabilize the rollouts before any learning could happen. We initialize $\phi_\theta$ so that the transform starts at near-identity — the second layer's weights are drawn from $\mathcal{N}(0, 10^{-3})$ and biases are zero, so $s_1 \approx s_2 \approx 1$ at step 0 and the KL between the warped and unwarped distributions is below $10^{-4}$ on real prompts. We don't use <em>exact</em> identity initialization because zero-init weights would zero out gradients flowing into the first layer through the chain rule.</p>
+
+  <!-- ===================== Section 4: Results ===================== -->
+  <h2 id="results">Some results</h2>
+
+  <p>We post-train Qwen3-1.7B-Base on DAPO-Math-17K under both objectives and evaluate on MATH-500. Our baselines are a temperature sweep (we report the per-dataset best, which we call GLOBAL-$T^\star$) and full-parameter RLVR fine-tuning at the same data and compute budget.</p>
+
+  <h3 id="results-passk">Pass@k LogitMLP earns its gains entirely from diversity</h3>
+
+  <figure class="wide">
+    <img src="assets/diversity_decomposition.png" alt="Three bar charts: best@8 (LogitMLP pass@k highest at 0.786), mean accuracy (Full RLVR highest), and answer entropy (LogitMLP pass@k highest at 1.267 nats).">
+    <figcaption><strong>MATH-500, Qwen3-1.7B-Base.</strong> LogitMLP (pass@k) sets the strongest best@8 and the highest answer entropy, but its mean accuracy is lower than Full RLVR — the signature of a sampling-only intervention.</figcaption>
+  </figure>
+
+  <p>The pass@$k$ row is where things get interesting. LogitMLP (pass@$k$) takes the strongest best@8 — 0.786, <strong>+9.4 points</strong> over the Full-RLVR pass@$k$ checkpoint — but its mean accuracy (0.328) is actually <em>worse</em> than Full RLVR's (0.427), and so is its worst@8 (0.062 vs. 0.146). The model isn't getting better at solving math problems on a per-rollout basis. It's getting more <em>varied</em> across rollouts: answer entropy more than doubles (1.267 vs. 0.473 nats), and the expected number of distinct answers in any random 8-subset rises from ~2.05 to ~4.53.</p>
+
+  <p>This is exactly the signature of a sampling-only intervention. LogitMLP isn't producing more correct rollouts; it's producing <em>more diverse</em> rollouts, among which at least one is more likely to be correct. And it's doing this by reshaping the sampling distribution alone — the base model never changes. The interesting takeaway is <em>where</em> pass@$k$ gains can come from: a non-trivial portion of the pass@$k$ advantage that Full-RLVR has over the base model is recoverable just from better sampling, no new reasoning required.</p>
+
+  <p>The pass@1 rows tell the complementary story. When the objective rewards single-sample correctness, LogitMLP and the Full-RLVR checkpoint are essentially indistinguishable on mean accuracy (0.523 vs. 0.534), worst@8 (0.240 vs. 0.298), and answer entropy (0.354 vs. 0.353). Same metric profile, very different training budgets — LogitMLP gets there with 525K trainable parameters and the Full-RLVR checkpoint gets there with all 1.7B.</p>
+
+  <div class="tbl-wrap wide">
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>best@8</th>
+          <th>Mean Acc.</th>
+          <th>worst@8</th>
+          <th>Entropy</th>
+          <th>Uniq/8</th>
+          <th>Acc. Std</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>GLOBAL-$T^\star$ (Qwen3-1.7B base)</td><td>0.496</td><td>0.231</td><td>0.051</td><td>0.396</td><td>0.219</td><td>0.185</td></tr>
+        <tr class="highlight"><td><strong>LogitMLP (pass@k)</strong></td><td class="best">0.786</td><td>0.328</td><td>0.062</td><td class="best">1.267</td><td class="best">0.566</td><td class="best">0.352</td></tr>
+        <tr><td>Full RLVR (pass@k)</td><td>0.692</td><td>0.427</td><td>0.146</td><td>0.473</td><td>0.256</td><td>0.232</td></tr>
+        <tr class="highlight"><td><strong>LogitMLP (pass@1)</strong></td><td>0.682</td><td>0.523</td><td>0.240</td><td>0.354</td><td>0.226</td><td>0.175</td></tr>
+        <tr><td>Full RLVR (pass@1)</td><td>0.742</td><td class="best">0.534</td><td class="best">0.298</td><td>0.353</td><td>0.221</td><td>0.182</td></tr>
+      </tbody>
+    </table>
+    <figcaption><strong>Table 1.</strong> MATH-500 on Qwen3-1.7B. LogitMLP rows highlighted. Same training budget, $4{,}096$-token response cap.</figcaption>
+  </div>
+
+  <h3 id="results-pass1">Pass@1 LogitMLP mostly recovers Full RLVR</h3>
+
+  <p>That last observation is worth restating, because it's the central empirical claim of the post. Despite training fewer than 0.1% of the parameters, never modifying the base model, and being constrained to a strictly monotonic two-piece transform of the logits, pass@1 LogitMLP closes <em>most</em> of the gap between the base model and full-parameter RLVR fine-tuning on MATH-500.</p>
+
+  <p>The remaining gap is consistent with what the architecture forbids. LogitMLP can't rerank tokens (monotonicity preserves the model's ranking), can't acquire new knowledge (the base model is frozen), and can't change internal representations (we only act on the final logits). Whatever portion of Full-RLVR's benefit comes from those capabilities is by construction unreachable. That a strictly monotonic per-token transform captures the rest tells us that a non-trivial fraction of what RLVR teaches a 1.7B model on math reasoning is expressible <em>at decode time</em>, not in the weights.</p>
+
+  <h3 id="results-stacking">Stacking LogitMLP on a Full-RLVR checkpoint breaks the temperature Pareto frontier</h3>
+
+  <p>A natural objection to the previous result is that maybe we could just sweep the temperature on the Full-RLVR checkpoint and reproduce LogitMLP's numbers. We checked this.</p>
+
+  <div class="widget wide" id="pareto-widget">
+    <div class="widget-title">Figure 2 · Best@1 vs. best@8 on MATH-500</div>
+    <div class="widget-sub">The grey curve is the temperature sweep on the Full-RLVR pass@k Qwen3-1.7B checkpoint. The orange star is the same checkpoint with LogitMLP applied at $T = 1.0$.</div>
+  </div>
+
+  <p>The Full-RLVR temperature sweep traces the textbook accuracy/diversity tradeoff. As $T$ rises, best@1 monotonically decays (0.492 → 0.465) while best@8 rises (0.768 → 0.818). No single temperature on this curve simultaneously matches the best@1 of the lowest temperature and the best@8 of the highest — that's the Pareto frontier any global, context-independent scalar is forced to trace.</p>
+
+  <p>Stacking LogitMLP on top of the same Full-RLVR checkpoint breaks the frontier outright. best@1 jumps to <strong>0.549</strong>, higher than every Full-RLVR temperature setting <em>including the lowest</em>. best@8 simultaneously reaches <strong>0.873</strong>, higher than every Full-RLVR setting <em>including the highest</em>. The learned transform is not behaving as a global temperature in disguise — if it were, it would be on the same curve. What it's actually doing is sharpening the distribution at positions where the model is well-calibrated and flattening it only at positions where exploration pays off. This is the per-token adaptivity we set out to capture, made quantitative.</p>
+
+  <!-- Temperature vs LogitMLP interactive comparison -->
+  <div class="widget wide" id="tvslm-widget">
+    <div class="widget-title">Figure 3 · Trying to match LogitMLP with a single global temperature</div>
+    <div class="widget-sub">Both panels start from the same moderate-confidence logit vector (base top-1 prob ≈ 36%, base entropy ≈ 2.1 nats — a typical &ldquo;active&rdquo; position for LogitMLP). The left panel applies a global temperature $T$ (slider). The right panel applies a fixed LogitMLP transform using $(s_1, s_2)$ values taken directly from real high-KL active tokens of each trained head: the pass@k preset uses $(s_1, s_2) = (1.35, 2.14)$ from a token where pass@k LogitMLP <em>sharpens the head more aggressively than the tail</em>; the DAPO preset uses $(s_1, s_2) = (0.95, 0.77)$ from a token where DAPO LogitMLP <em>flattens the head more aggressively than the tail</em> (an &ldquo;anti-overconfidence reshape&rdquo;). The summary below shows the live KL divergence between the two distributions and the smallest residual KL achievable at <em>any</em> global $T$. Neither preset can be matched by a single $T$: the two-piece transform reshapes head and tail at different rates, while a scalar can only rescale both at the same rate.</div>
+  </div>
+
+  <h3 id="results-llama">The same additivity story holds for Llama</h3>
+
+  <p>To check that this isn't a Qwen-specific phenomenon, we ran the same setup on Llama-3.2-1B-Instruct. Llama is a useful test case because it's a different family from Qwen (different tokenizer, different pretraining, different post-training), so any pattern that holds across both is more likely to be a property of the method rather than the base model.</p>
+
+  <p>The story does hold — but with an interesting twist on what the stacking gives you.</p>
+
+  <figure class="wide">
+    <img src="assets/llama_additivity.png" alt="Llama additivity: two bar charts (mean@8 and worst@8). Stacking LogitMLP on a Full-RLVR Llama checkpoint raises mean@8 from 0.243 to 0.270 (+11% relative) and lifts worst@8 from 0.074 to 0.102.">
+    <figcaption><strong>MATH-500, Llama-3.2-1B-Instruct.</strong> Stacking LogitMLP on a Full-RLVR pass@$k$ checkpoint raises mean@8 by 11% relative (0.243 → 0.270) and lifts worst@8 from 0.074 to 0.102. The best@8/mean ratio is essentially unchanged (0.507 → 0.507).</figcaption>
+  </figure>
+
+  <p>A few things stand out. First, just like with Qwen, stacking LogitMLP on the Full-RLVR Llama checkpoint produces <em>additive</em> gains rather than redundant ones — mean@8 goes up by 11% relative, suggesting that LogitMLP and the Full-RLVR weights are doing complementary things.</p>
+
+  <p>Second, the <em>shape</em> of the gain on Llama is different from Qwen, and in a revealing way. On Qwen, stacking LogitMLP broke the temperature Pareto frontier — gains came on both axes (more correctness <em>and</em> more diversity). On Llama, the best@8/mean ratio is essentially unchanged (0.507 → 0.507), meaning the gain comes entirely from <em>raising average correctness</em>, not from increasing output diversity. What LogitMLP adds on Llama is a <em>sharper</em> sampling policy at moderately-confident positions — concentrating more mass on the top-1 candidate that the base model was already favoring but not committing to.</p>
+
+  <p>This is the <em>opposite direction</em> from Qwen. On Qwen, the per-position analyses we'll show later in the post are clear that most of LogitMLP's KL budget goes to <em>flattening</em> the head at moderately-confident positions — an anti-overconfidence reshape. On Llama, the same architecture trained the same way appears to do the reverse: it <em>sharpens</em> the head at moderately-confident positions, the kind of reshape you'd want if the model were being too uncertain about predictions it should commit to. The exact direction the trained head moves in is determined by the base model's miscalibration, not by anything in the LogitMLP recipe — we'll come back to this in <a href="#calibration">&ldquo;Why does this even work?&rdquo;</a>.</p>
+
+  <p>Third, worst@8 jumps from 0.074 to 0.102 — a substantial improvement to the model's <em>floor</em> performance. This is the kind of metric that often gets ignored, but it matters: it tells us that LogitMLP doesn't just improve the model's best samples, it also improves its worst ones. The combined approach is better-calibrated end-to-end.</p>
+
+  <h3 id="results-expressivity">More expressive function families don't help</h3>
+
+  <p>A reasonable concern about our two-piece monotonic family is that we might be leaving performance on the table — maybe a more expressive function would do better. To check, we trained two more expressive variants under the same pass@$k$ objective and compared MATH best@8.</p>
+
+  <figure class="wide">
+    <img src="assets/function_expressivity.png" alt="Training curves for three model variants — LogitMLP, Extra Layer MLP Only, Full Extra Layer — all converge to similar MATH best@8 mean accuracy of ~84-86%, despite ~100x parameter range.">
+    <figcaption><strong>Three function families on an expressivity ladder</strong>, all trained with the same pass@$k$ objective on Qwen3-1.7B. &ldquo;Full Extra Layer&rdquo; appends a complete transformer block (attention + MLP + LayerNorm) before the unembedding; &ldquo;Extra Layer MLP Only&rdquo; uses the same architecture but freezes attention and trains only the MLP and LayerNorm; LogitMLP intervenes only at the final logit transform.</figcaption>
+  </figure>
+
+  <p>All three converge to nearly the same best@8 on MATH despite a $\gtrsim 100\times$ difference in parameter count between the smallest and largest. The bottleneck on this task isn't the expressivity of the function family — it's whatever per-token structure RLVR is trying to teach. LogitMLP captures essentially all of it with the smallest possible learnable head, which is a satisfying defensive result: we picked the simplest member of a hierarchy of more-expressive options, and the simplest member wasn't leaving anything on the table.</p>
+
+  <!-- ===================== Section 5: What does LogitMLP learn ===================== -->
+  <h2 id="learned">What is LogitMLP actually learning?</h2>
+
+  <p>The two-piece family was chosen for its <em>capacity</em> — it can recover top-$k$, top-$p$, anti-overconfidence, and so on as special cases. A natural follow-up question is which of these regions the learned head actually occupies. We took the trained LogitMLP heads and analyzed them on 80 base-model rollouts (about 47K completion-predicting positions) on the MATH-500 / AIME-2025 validation sets, teacher-forcing every variant on a fixed input. Three findings stand out.</p>
+
+  <h3 id="learned-sparse">Almost all of the action is on a tiny minority of tokens</h3>
+
+  <p>At each position $t$ of a teacher-forced rollout, we have two distributions over the vocabulary: the <em>base</em> distribution $\mathrm{softmax}(\ell_t)$ and the <em>warp</em> $\mathrm{softmax}(f(\ell_t))$. Their KL divergence $\mathrm{KL}(\mathrm{warp}\,\|\,\mathrm{base})$ measures how strongly LogitMLP reshapes the distribution at that token — zero means it left the base unchanged, large means it carved out a very different distribution.</p>
+
+  <p>The first thing we see when looking at this position-wise KL is that <strong>it is extremely heavy-tailed</strong>: 50% of all KL across the corpus is carried by 0.04–0.09% of positions, and 70%+ of positions have KL below $10^{-5}$. On the overwhelming majority of tokens LogitMLP elects to do almost nothing. The action is concentrated on a small subpopulation of &ldquo;active&rdquo; tokens, and we'd like to know which ones.</p>
+
+  <p>To get at that, we bin every position by the base distribution's top-1 probability (a proxy for how confident the base model is at that position) and look at the mean and 95th-percentile KL within each bin.</p>
+
+  <figure class="wide">
+    <img src="assets/divergence_vs_top1.png" alt="Two bar charts (LogitMLP DAPO and LogitMLP pass@k) of mean and 95th-percentile KL(warp || base) across base top-1 probability bins from 0–0.5 up to ≥0.995. Both heads show large KL on the lower-confidence bins and a 1–2 order-of-magnitude drop on the ≥0.995 bin.">
+    <figcaption><strong>LogitMLP barely touches confident positions; it acts mainly on moderate-confidence tokens.</strong> For each variant we bin the ~47K teacher-forced positions across 80 Qwen3-1.7B rollouts by the base distribution's top-1 probability, and show the mean (dark) and 95th-percentile (light) KL within each bin on a log scale. KL drops by 1–2 orders of magnitude between the moderate-confidence bins (top-1 prob ≈ 0.5–0.95) and the highest-confidence bin (top-1 prob ≥ 0.995) for both heads, and the very-high-confidence bin, despite holding more than 60% of all tokens, is barely touched.</figcaption>
+  </figure>
+
+  <p>A common intuition is that the &ldquo;high-leverage&rdquo; tokens for a learned decoder are the maximum-entropy ones — the few-percent of positions where every reasonable continuation is roughly equally likely. We see something subtler here: the active tokens cluster at <em>moderate</em> confidence (base top-1 prob ≈ 0.3–0.85), not at the high-entropy extreme. These look like <em>structural choice points</em> in math reasoning — &ldquo;Step 3: Use the [original / fact / equation / definition] …&rdquo; — rather than wide-open generative choices.</p>
+
+  <h3 id="learned-opposite">DAPO and pass@k push the policy in opposite directions</h3>
+
+  <p>Active tokens are interesting; we now ask <em>how</em> the warp differs from the base on those tokens. A natural way to characterize that, given that LogitMLP's family generalizes temperature, is to ask: what single global temperature $T$, applied just to that one position's base logits, would produce a distribution closest to LogitMLP's warp at the same position?</p>
+
+  <p>Concretely, for each active position (we take the ~2,000 positions per variant with KL$(\mathrm{warp}\,\|\,\mathrm{base}) > 0.01$), we sweep $T$ over a grid and pick the value that minimizes the KL between the temperature-scaled base distribution and LogitMLP's warp. The result is a single &ldquo;effective per-token temperature&rdquo; $T^\star_t$ that summarizes what LogitMLP did at position $t$: $T^\star_t < 1$ means the warp is sharper than the base (the head is concentrating mass), $T^\star_t > 1$ means it's flatter (the head is being spread out).</p>
+
+  <figure class="wide">
+    <img src="assets/per_token_T_hist.png" alt="Two histograms — one for the DAPO-trained LogitMLP head and one for the pass@k-trained head — showing the distribution of effective per-token temperatures across active tokens. DAPO has a large mode below T=1 and a secondary mode above; pass@k has a large mode below T=1 and a clear secondary mode around T≈1.2–1.4 above it.">
+    <figcaption><strong>Active LogitMLP tokens want very different temperatures.</strong> For each active token, we find the global temperature $T^\star_t$ that, applied to the base logits at that position, best matches the LogitMLP-warped distribution. The histogram is over those $T^\star_t$ values, one per active token. Most active tokens want $T^\star &lt; 1$ (sharpen), but both heads carry a clear secondary mode at $T^\star &gt; 1$ (flatten) — and that secondary mode is where the highest-KL tokens live for the DAPO head.</figcaption>
+  </figure>
+
+  <p>If we further restrict to the tokens carrying the most KL (KL > 0.05, where the warp is really doing something), the two heads diverge cleanly:</p>
+  <ul>
+    <li><strong>LogitMLP (DAPO / pass@1)</strong> <em>raises entropy</em> by an average of <strong>+0.65 nats</strong> on these high-KL active tokens. It picks $s_1 < 1$ at 79% of them, i.e. it acts as a <em>context-conditional flattener</em>. The picture is: at uncertain reasoning forks, expand the cone of likely continuations.</li>
+    <li><strong>LogitMLP (pass@k)</strong> <em>lowers entropy</em> by an average of <strong>−0.19 nats</strong> on the same threshold, but with a larger absolute spread (some sharpen aggressively, some still flatten). It picks $s_1 > 1$ at 92% of those tokens, i.e. it acts more often as a <em>context-conditional sharpener</em>. The picture is: at uncertain reasoning forks, commit decisively.</li>
+  </ul>
+
+  <p>These are opposite-direction behaviors that emerge from the same architecture trained on the same data with the same prompts — the only difference is the RLVR advantage estimator. And they make sense given the way the two objectives shape exploration. Pass@$k$ wants <em>diverse trajectories at the trajectory level</em>, and the cheapest way to produce them is to commit decisively to a strategy fork early (so the rest of the rollout coherently follows that strategy), then sample independent rollouts to cover other forks. DAPO is optimizing pass@1, where exploring across forks <em>within a single rollout</em> can pay off more — flattening uncertain forks lets the model jitter between equally-likely continuations and occasionally discover a correct-but-non-obvious solution.</p>
+
+  <p>The full-RLVR baselines, by the way, move entropy barely at all on this active set (+0.03 / +0.03 nats). Full RLVR's KL budget is spent on shifting probability mass <em>between specific token IDs</em> — promoting whitespace and demoting markdown emphasis (<code>**</code>, <code>~~</code>, <code>***</code>) by ~0.5 nats on average. LogitMLP, by contrast, can't move mass between specific token IDs — monotonicity forbids reranking. What it can do is reshape the distribution at the right positions, and on these benchmarks that's enough.</p>
+
+  <h3 id="learned-qualitative">A look at what gets reshaped</h3>
+
+  <p>Here are some real active tokens from Qwen3-1.7B rollouts under both variants. Each example shows the few tokens of context leading up to the active position (the next token chosen is highlighted), the $(s_1, s_2)$ values LogitMLP picked there, and the top-6 candidates under both the base and warped distributions. Click the toggles to see how the two variants behave at structurally similar positions:</p>
+
+  <div class="widget wide" id="qualitative-widget">
+    <div class="widget-title">Figure 4 · LogitMLP at real reasoning forks</div>
+    <div class="widget-sub">Top-6 candidate tokens under the base distribution and after the LogitMLP transform, at the highest-KL moderate-confidence positions found across 80 Qwen3-1.7B rollouts on math problems.</div>
+  </div>
+
+  <p>The pattern is clean: pass@$k$ LogitMLP <em>sharpens</em> at &ldquo;Use the [original / fact / equation]&rdquo;-style forks — driving the top-1 candidate from ~40% up to ~70% — while DAPO LogitMLP <em>flattens</em> at similar positions. Both variants leave high-confidence tokens (mid-word continuations, finishing a number, punctuation after a complete sentence) essentially untouched.</p>
+
+  <h3 id="learned-wordcloud">What &ldquo;structural choice point&rdquo; looks like, at scale</h3>
+
+  <p>One more way to see this: we took the words immediately after every active-token branching position and aggregated them across all rollouts. The result is a word cloud of <em>where</em> LogitMLP elects to intervene — concretely, the words that introduce a structural choice in a math derivation.</p>
+
+  <figure class="wide">
+    <img src="assets/wordcloud_passk.png" alt="Word cloud of branching tokens for pass@k LogitMLP, dominated by 'compute', 'find', 'use', 'let', 'given', 'consider'.">
+    <figcaption><strong>Branching tokens for pass@$k$ LogitMLP.</strong> Across 80 Qwen3-1.7B rollouts, the active tokens cluster around words that begin a new step of reasoning — &ldquo;compute&rdquo;, &ldquo;find&rdquo;, &ldquo;let&rdquo;, &ldquo;given&rdquo;, &ldquo;consider&rdquo;, &ldquo;use&rdquo;. These are exactly the positions where the model has to commit to a strategy.</figcaption>
+  </figure>
+
+  <p>The picture, again, is that LogitMLP isn't doing anything mysterious. It's identifying the few-percent of tokens where the model is at a strategy-level fork, and reshaping the distribution there — sharpening if the objective rewards commit-to-a-strategy diversity, flattening if it rewards explore-multiple-strategies diversity.</p>
+
+  <!-- ===================== Section 5.5: Why does this even work? ===================== -->
+  <h2 id="calibration">Why does this even work? A calibration story</h2>
+
+  <p>Stepping back: <em>why</em> is there anything for a tiny inference-time head to do at all? The base model has already absorbed billions of tokens of pretraining and however many billions more of post-training; intuitively, by the time a logit vector reaches the unembedding it should be the best the model can produce. And yet a 525K-parameter monotonic transform applied <em>after</em> the model is done — a transform that cannot rerank, cannot add knowledge, cannot change a single internal representation — produces real gains.</p>
+
+  <p>The cleanest explanation we've been able to give ourselves is <strong>calibration</strong>. Modern post-trained LLMs are well-known to be <a href="https://arxiv.org/abs/1706.04599">miscalibrated</a>: SFT and RLHF/RLVR systematically push the model toward overconfident predictions on tokens it has high prior on, and toward underconfident predictions on others. That's not a bug — those training procedures are explicitly increasing the likelihood of certain trajectories under the policy — but it does mean that the resulting next-token distribution is not the optimally-shaped distribution for downstream decoding objectives like pass@1 or pass@$k$.</p>
+
+  <p>This framing makes sense of three observations that otherwise look unrelated:</p>
+
+  <h4>1. Why temperature works at all.</h4>
+  <p>Temperature scaling is the simplest possible recalibration: a single scalar that uniformly sharpens or flattens the entire distribution. The reason temperature sweeps reliably help on essentially every post-trained model is that essentially every post-trained model has uniform-direction miscalibration that a scalar can partially correct. Without that miscalibration, there'd be nothing for $T \neq 1$ to fix, and temperature would be a no-op. The fact that $T \neq 1$ is consistently optimal across families and benchmarks is itself evidence that miscalibration is pervasive.</p>
+
+  <h4>2. Why LogitMLP can move things in opposite directions on Qwen vs. Llama.</h4>
+  <p>If LogitMLP is fundamentally a recalibration tool, the direction it pushes the distribution should depend on which way the base model's miscalibration goes. That's exactly what we see. On Qwen3-1.7B, the per-token analysis above shows that LogitMLP (DAPO) is mostly an <em>anti-overconfidence reshape</em>: $s_1 < 1$ at 79% of high-KL active tokens, raising entropy on average. The Qwen base model is over-committing on moderately-confident tokens, and LogitMLP relaxes that. On Llama-3.2-1B, the stacking gain comes from <em>raising mean accuracy without raising diversity</em> — the signature of a sharpening reshape — consistent with the Llama base being under-confident on tokens it should commit to. Same architecture, same training recipe, opposite direction of correction, because the underlying miscalibration goes the other way.</p>
+
+  <h4>3. Why neither temperature nor LogitMLP helps on Gemma.</h4>
+  <p>The most striking confirmation is a negative result. We tried the same setup on Gemma-3-1B-IT and found that LogitMLP produced essentially no gains over the base model. We were initially confused, until we noticed that a global temperature sweep on the same Gemma checkpoint also produced almost no movement: across $T \in \{0.3, 0.5, 0.7, 1.0, 1.3\}$, MATH-500 mean accuracy stayed within a $\pm$0.003 band (0.371–0.374) and best@8 within a 1.6-point band (0.602–0.625). For comparison, the same sweep on a Full-RLVR Qwen checkpoint (the temperature curve in <a href="#results-stacking">Figure 2</a>) traces a clear accuracy/diversity Pareto curve with best@1 swinging by 2.7 points and best@8 swinging by 5.0 points across the same temperature range. Gemma's instruction-tuning pipeline appears to leave the model already well-calibrated for math evaluation, and when there's no miscalibration to fix, there's no slack for either a scalar or a learned token-adaptive transform to recover. This doesn't tell us LogitMLP is broken; it tells us LogitMLP is doing what we'd hope, in the precise sense that <em>it improves things exactly when, and to the extent that, the base model is recalibratable</em>.</p>
+
+  <p>Put together, the picture is that LogitMLP is best understood not as a competitor to weight-space RLVR but as a <em>better-conditioned</em> calibration knob than temperature: same essential job (recalibrate the post-trained distribution), but with per-token control that lets it correct token-specific over- or under-confidence rather than only correcting the average. This view also makes the &ldquo;Stacking LogitMLP on a Full-RLVR checkpoint breaks the Pareto frontier&rdquo; result less mysterious — even after weight-space RLVR, there's residual token-specific miscalibration that a scalar can't reach but a learned per-token reshape can. As post-training pipelines get more elaborate, we'd expect the residual miscalibration they leave behind to also get more token-specific, which makes a learned per-token recalibrator increasingly preferable to the scalar one we've been using since 2017.</p>
+
+  <p>One caveat worth flagging: this is still mostly an interpretive story over our existing results, not a separately-validated finding. We don't have a clean per-token calibration metric that we've correlated with LogitMLP's per-position $s_i$ outputs, and the Gemma negative-result is from a single post-trained variant. But it's the simplest hypothesis consistent with what we've observed, it makes a sharp prediction (LogitMLP gain should track base-model miscalibration), and it's something we'd be excited to test directly.</p>
+
+  <!-- ===================== Section 6: Limitations ===================== -->
+  <h2 id="limitations">Limitations</h2>
+
+  <p>A few important caveats.</p>
+
+  <h4>Model scale</h4>
+  <p>Our experiments are at the 1–2B scale. Larger models may already have better-calibrated output distributions out of the box, or they may expose richer token-level structure for a learned transform to exploit. It's not obvious whether the fraction of Full-RLVR's gain that LogitMLP recovers will hold, grow, or shrink as the base model gets bigger.</p>
+
+  <h4>Domain</h4>
+  <p>We train and evaluate on math-domain RLVR data because verifiable rewards are easy to define for math. We haven't tested whether the same approach is useful for code, longer-horizon agentic tasks, instruction following, or multi-modal inputs. Because LogitMLP is constrained to rank-preserving reshapes, it cannot mimic the kind of vocabulary-level rescheduling that full RLVR does on math (e.g. demoting markdown emphasis or promoting whitespace), so it should be relatively weaker on domains where most of full RLVR's value comes from those vocabulary-level edits rather than from per-token reshape — but we don't have direct evidence either way.</p>
+
+  <h4>Response length</h4>
+  <p>For Qwen, we train with a maximum response length of 4096 tokens, which is short relative to the long-chain-of-thought regimes where RLVR is often most valuable. The qualitative claims in this post are insensitive to budget within the range we tested (up to 12K tokens at eval time), but we can't say much about how LogitMLP's behavior changes on truly long-form reasoning traces.</p>
+
+  <h4>Architectural minimalism</h4>
+  <p>Our transform is intentionally minimal: two linear pieces, one breakpoint, conditioned on the current token's hidden state plus three logit statistics. More pieces, smoother monotonic families like neural splines, or conditioning on a window of recent states could in principle express finer-grained reshaping policies. The function-expressivity ablation suggests this won't help on math, but it might matter for other domains.</p>
+
+  <!-- ===================== Section 7: Going forward ===================== -->
+  <h2 id="future">Going forward</h2>
+
+  <p>We see LogitMLP as one instance of a broader principle: <em>cheap, token-level transforms learned on top of a frozen base model can recover much of the value of full fine-tuning, and can be hot-swapped at deployment time</em>. A few directions we're excited about:</p>
+
+  <h4>Larger models and other modalities</h4>
+  <p>The most immediate question is whether LogitMLP's parameter efficiency holds at larger scales. If a 525K-parameter head recovers most of Full RLVR on a 1.7B model, what does a similar head do on a 70B or 400B model? The hope is that as full fine-tuning becomes prohibitive for downstream users, learning a tiny inference-time transform becomes an increasingly attractive lever.</p>
+
+  <h4>Interpreting what the transform learns</h4>
+  <p>LogitMLP is small enough to actually interpret. By looking at which hidden-state directions and logit statistics control the slopes and breakpoint, we may be able to derive a <em>mechanistic</em> decoding rule from the learned policy — something a human could read and write down as a hand-designed algorithm. This would tell us whether RLVR primarily teaches the model to alter its confidence, identify branching points, or apply some more general form of adaptive temperature scaling. It would also give us a clean way to ask: when LogitMLP and Full RLVR disagree, what does Full RLVR know that LogitMLP can't express?</p>
+
+  <h4>Diffusion language models</h4>
+  <p>The setup translates pretty directly to diffusion language models, where decoding is even more of an open question. Diffusion LMs have a denoising loop where each step produces a distribution over tokens or token edits, and the choice of sampling strategy at each denoising step is currently picked by hand. A learned per-step transform conditioned on the current denoising state seems like a natural fit, and might matter even more than it does for autoregressive models since the per-step uncertainty structure of denoising is so different.</p>
+
+  <h4>Composition with other lightweight methods</h4>
+  <p>LogitMLP acts on the model's output distribution, which makes it compositional with anything acting earlier in the stack — LoRA, prefix tuning, steering vectors, any of the standard parameter-efficient fine-tuning methods. We haven't explored these combinations, but there's no architectural reason they can't be stacked.</p>
+
+  <p>The broader take is that <strong>the inference-time output transformation is an underexplored knob</strong>. For years it's been a single scalar (temperature) plus a discrete choice from a small menu of truncation rules, and that's still the default in essentially every deployment today. There's no reason it has to stay that way, and our results suggest that even a small lightweight head trained on top of a frozen model can do meaningfully better than any setting of the existing knobs.</p>
+
+  <!-- ===================== Conclusion ===================== -->
+  <h2 id="conclusion">Conclusion</h2>
+
+  <p>Temperature is the simplest possible decoding policy — a single scalar, applied uniformly to every token of every generation, picked by hand. We asked what happens when you replace it with the smallest reasonable learned object instead: a tiny MLP, conditioned on the model's own hidden state, emitting a token-specific piecewise-linear transform of the logits. We then trained this object end-to-end with RLVR on top of a <em>frozen</em> base model.</p>
+
+  <p>On Qwen3-1.7B math reasoning, the picture that emerged was cleaner than we expected:</p>
+  <ul>
+    <li>With fewer than <strong>0.1% of the parameters</strong> trainable and the base model untouched, LogitMLP recovers most of the gap between a temperature-optimized base model and full-parameter RLVR fine-tuning on pass@1, and beats Full RLVR on pass@$k$.</li>
+    <li>Stacked on top of an already-RLVR-tuned checkpoint, LogitMLP <strong>breaks the global-temperature accuracy/diversity Pareto frontier</strong>: simultaneously +5.7 best@1 and +5.5 best@8 over every temperature setting of the same checkpoint. The same pattern of additive gains shows up on Llama-3.2-1B, just with a different shape of gain.</li>
+    <li>The learned heads are extraordinarily sparse — almost all of the KL mass is concentrated on a tiny minority of moderate-confidence &ldquo;structural choice point&rdquo; tokens, and the same architecture pushed by two different advantage estimators (pass@1 vs. pass@$k$) ends up doing <em>opposite</em> things at those tokens: pass@$k$ sharpens to commit decisively to a strategy fork, DAPO flattens to explore within a single rollout.</li>
+    <li>The simplest interpretation that fits all of this — including the <em>opposite</em>-direction behavior on Qwen vs. Llama and the negative result on already-well-calibrated Gemma — is that LogitMLP is a <strong>better-conditioned recalibrator</strong> than temperature. It helps exactly when, and to the extent that, the base model's post-training has left token-specific miscalibration on the table.</li>
+  </ul>
+
+  <p>The methodological takeaway, beyond the specific numbers, is that the inference-time output transformation is an underexplored knob in modern LLM stacks. A scalar plus a discrete choice from a grab bag of truncation rules is a strange place to be in 2026, given that everything else in the pipeline is end-to-end learned. LogitMLP is one minimal instance of letting the model learn its own piece of that knob, and it's already enough to get nontrivial gains. We expect bigger gains are available with more expressive function families, longer contexts, and other domains — particularly diffusion language models, where the analogous &ldquo;decoding policy&rdquo; question is even more wide-open.</p>
+
+  <!-- ===================== Acknowledgements ===================== -->
+  <h2 id="acknowledgements">Acknowledgements</h2>
+
+  <p>This project began as a final project for <strong>UC Berkeley's EE290 (Scalable AI)</strong> course, and would not have happened without it. We are grateful to Professors <strong>Anant Sahai</strong> and <strong>Jiantao Jiao</strong> for designing a class that gave us both the technical foundations and the freedom to pursue an open-ended research direction, and to TAs <strong>Haocheng Xi</strong> and <strong>Paul Zhiyuan Zhou</strong> for their guidance, feedback, and patience throughout the semester. We also thank <strong>NVIDIA</strong>, who sponsors the course and provided the 8&times;H100 compute node on which essentially every experiment in this post was run. Many of the ablations and qualitative analyses here are direct consequences of being able to iterate quickly on real RLVR runs; we are very lucky to have that resource available to a class project.</p>
+
+  <!-- ===================== Citation ===================== -->
+  <h2 id="citation">Citation</h2>
+
+  <pre><code>@article{logitmlp2026,
+  title  = "Beyond Temperature: Learned Token-Adaptive Logit Transformations with LogitMLP",
+  author = "Gao, Timothy and Luu, Alex and Polavaram, Harsha and Yang, David and Bansal, Aryan and Athavale, Rishi",
+  year   = "2026",
+  note   = "UC Berkeley EE290 (Scalable AI) class project"
+}</code></pre>
+
+  <!-- ===================== References ===================== -->
+  <h2 id="references">References</h2>
+  <div class="refs">
+    <ol>
+      <li><span class="ttl">Holtzman, A., Buys, J., Du, L., Forbes, M., &amp; Choi, Y. (2019).</span> The Curious Case of Neural Text Degeneration. <a href="https://arxiv.org/abs/1904.09751">arXiv:1904.09751</a>.</li>
+      <li><span class="ttl">Guo, C., Pleiss, G., Sun, Y., &amp; Weinberger, K. Q. (2017).</span> On Calibration of Modern Neural Networks. <a href="https://arxiv.org/abs/1706.04599">arXiv:1706.04599</a>.</li>
+      <li><span class="ttl">Chen, M., Tworek, J., et al. (2021).</span> Evaluating Large Language Models Trained on Code. <a href="https://arxiv.org/abs/2107.03374">arXiv:2107.03374</a>.</li>
+      <li><span class="ttl">Renze, M., &amp; Guven, E. (2024).</span> The Effect of Sampling Temperature on Problem Solving in Large Language Models. <a href="https://arxiv.org/abs/2402.05201">arXiv:2402.05201</a>.</li>
+      <li><span class="ttl">DeepSeek-AI. (2025).</span> DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning. <a href="https://arxiv.org/abs/2501.12948">arXiv:2501.12948</a>.</li>
+      <li><span class="ttl">Yu, Q., et al. (2025).</span> DAPO: An Open-Source LLM Reinforcement Learning System at Scale. <a href="https://arxiv.org/abs/2503.14476">arXiv:2503.14476</a>.</li>
+      <li><span class="ttl">Chen, K., et al. (2025).</span> Pass@k Training for Adaptively Balancing Exploration and Exploitation of Large Reasoning Models. <a href="https://arxiv.org/abs/2508.10751">arXiv:2508.10751</a>.</li>
+      <li><span class="ttl">Wang, S., et al. (2025).</span> Adaptive Decoding via Learned Sampling Parameters. <a href="https://arxiv.org/abs/2410.21287">arXiv:2410.21287</a>.</li>
+      <li><span class="ttl">Wang, S., et al. (2025).</span> Beyond the 80/20 Rule: High-Entropy Minority Tokens Drive Effective Reinforcement Learning for LLM Reasoning. <a href="https://arxiv.org/abs/2506.01939">arXiv:2506.01939</a>.</li>
+      <li><span class="ttl">entropix authors. (2024).</span> Entropix: per-token entropy-based decoding. <a href="https://github.com/xjdr-alt/entropix">github.com/xjdr-alt/entropix</a>.</li>
+    </ol>
+  </div>
+
+</article>
+
+<footer class="site-footer">
+  Hand-written HTML. Math via KaTeX. All figures and interactive widgets are static / vanilla JS.
+</footer>
+
+<script src="scripts/widgets.js"></script>
+</body>
+</html>
